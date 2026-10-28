@@ -1,0 +1,46 @@
+config:
+  channel_name: GrooveStation_Demo
+  short_name: GrooveStation
+  vocals: false
+  playlist_meta:
+    Soul Jazz:
+      seo_keywords:
+      - Relaxing Jazz Instrumental
+      - Chill Hip-Hop Beats
+      catalog_tag: Jazz
+    Groovy Jazz:
+      seo_keywords:
+      - Smooth Jazz Hip-Hop
+      - Upbeat Lo-Fi
+      catalog_tag: Jazz
+    Boutique Hotel:
+      seo_keywords:
+      - Boutique Hotel Music
+      - Afro Lounge
+      catalog_tag: Lounge
+genres:
+  Soul Jazz:
+    prompt: A laid-back smooth jazz hip-hop track featuring a prominent Rhodes piano
+      melody, classic boom-bap beat with crisp snare and soft kick around 78 BPM,
+      deep melodic bassline, pure instrumental, no vocals.
+    tempo_variations:
+    - 74
+    - 75
+    - 76
+    - 77
+    - 78
+    - 79
+    key_variations:
+    - A Minor
+    - C Minor
+    - D Minor
+    - F Minor
+    - G Minor
+    lead_variations:
+    - Rhodes piano
+    - Rhodes piano + soft piano
+    - Soft piano
+    song_titles:
+    - Letting Things Settle
+    - Reflective Sessions
+    - Velvet Hours

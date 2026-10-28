@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.channel_name }}</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=15.0">
+    <style>
+        /* FOCUS MODE STYLES */
+        .workspace-overlay {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0b0c15;
+            z-index: 100;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .workspace-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .workspace-subtitle {
+            font-size: 1rem;
+            color: #888;
+            margin-left: 10px;
+        }
+
+        .session-timer {
+            font-family: 'Consolas', monospace;
+            font-size: 1.2rem;
+            color: var(--accent-color);
+            background: #111;
+            padding: 5px 15px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+
+        /* PROGRESS TRACKER */
+        .progress-tracker {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #111;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .step-item {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background: #1a1a24;
+            color: #666;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .step-item.active {
+            background: #2a3a2a;
+            color: #fff;
+            border: 1px solid #444;
+        }
+
+        .step-item.done {
+            background: #004422;
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+
+        .editor-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .editor-panel {
+            background: #1a1a24;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .editor-label {
+            font-size: 0.9rem;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .big-textarea {
+            flex: 1;
+            background: #08080a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Consolas', monospace;
+            line-height: 1.4;
+            resize: none;
+            font-size: 1rem;
+        }
+
+        .big-textarea:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        .copy-bar {
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        /* DASHBOARD GRID */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 50px;
+        }
+
+        .vibe-tile {
+            background: #1a1a24;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .vibe-tile:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-5px);
+            background: #1f2a24;
+        }
+
+        .vibe-tile h2 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .vibe-tile p {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 5px;
+            z-index: 9999;
+            border-top: 1px solid #333;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="debug-console"></div>
+    <script>
+        window.onerror = function (msg, url, line) {
+            const debug = document.getElementById('debug-console');
+            debug.style.display = 'block';
+            debug.innerHTML += `<div>❌ ERROR: ${msg} (Line: ${line})</div>`;
+            return false;
+        };
+        console.log = (function (oldLog) {
+            return function (...args) {
+                const debug = document.getElementById('debug-console');
+                if (debug) debug.innerHTML += `<div>log: ${args.join(' ')}</div>`;
+                oldLog.apply(console, args);
+            };
+        })(console.log);
+    </script>
+
+    <!-- GLOBAL NAVIGATION BAR -->
+    <nav
+        style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(to right, #111, #1a1a24); border-bottom: 2px solid #00ff88; padding: 10px 30px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 30px;">
+            <div style="font-size: 1.3rem; font-weight: bold;">
+                <span style="color: #fff;">{{ config.channel_name }}</span>
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <a href="/" class="nav-tab active" onclick="showDashboard()">🏠 Home</a>
+                <a href="#" class="nav-tab" onclick="showSettings()">⚙️ Settings</a>
+                <a href="http://localhost:8501" target="_blank" class="nav-tab">🎹 Analyzer</a>
+                <a href="#" class="nav-tab" onclick="openIngestAll(); return false;">🎬 Production</a>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="color: #666; font-size: 0.8rem;">Unified Workstation</span>
+            <span style="color: #00ff88; font-size: 0.8rem;">● Online</span>
+        </div>
+    </nav>
+
+    <style>
+        .nav-tab {
+            padding: 8px 16px;
+            background: #1a1a24;
+            color: #888;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #2a3a2a;
+            color: #00ff88;
+            border-color: #00ff88;
+        }
+
+        .nav-tab.active {
+            background: #00ff8820;
+            color: #00ff88;
+            border-color: #00ff88;
+        }
+    </style>
+
+    <!-- VIEW 4: SETTINGS -->
+    <div id="view-settings" class="container" style="display: none; margin-top: 100px; max-width: 600px;">
+        <h2 style="border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px;">⚙️ Channel Settings</h2>
+
+        <div style="background: #1a1a24; padding: 20px; border-radius: 10px;">
+            <div style="margin-bottom: 15px;">
+                <label style="display:block; color:#888; margin-bottom:5px;">Brand Name</label>
+                <input type="text" id="set-brand-name"
+                    style="width:100%; padding:10px; background:#111; border:1px solid #333; color:#fff;"
+                    placeholder="e.g. BussGroove">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display:block; color:#888; margin-bottom:5px;">Primary Color</label>
+                <input type="color" id="set-brand-color" style="width:100%; height:40px; border:none;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display:block; color:#888; margin-bottom:5px;">Intro Logic (Line 1/2/3)</label>
+                <input type="text" id="set-intro-1"
+                    style="width:100%; margin-bottom:5px; padding:8px; background:#111; border:1px solid #333; color:#fff;"
+                    placeholder="Line 1 (Presents)">
+                <input type="text" id="set-intro-2"
+                    style="width:100%; margin-bottom:5px; padding:8px; background:#111; border:1px solid #333; color:#fff;"
+                    placeholder="Line 2 (Slogan)">
+                <input type="text" id="set-intro-3"
+                    style="width:100%; margin-bottom:5px; padding:8px; background:#111; border:1px solid #333; color:#fff;"
+                    placeholder="Line 3 (CTA)">
+            </div>
+
+            <button onclick="saveSettings()"
+                style="width:100%; padding:15px; background:var(--primary-color); color:#000; font-weight:bold; border:none; cursor:pointer;">💾
+                SAVE SETTINGS</button>
+            <div id="settings-status" style="margin-top:10px; text-align:center;"></div>
+        </div>
+    </div>
+
+    <!-- VIEW 1: DASHBOARD -->
+    <div id="view-dashboard" class="container" style="margin-top: 70px;">
+        <header style="text-align: center; margin-top: 40px;">
+            <h1 style="font-size: 2.5rem; margin-bottom: 10px;">{{ config.channel_name }}</h1>
+            <p style="color: #666;">Select a Vibe to Start a Focus Session</p>
+        </header>
+
+        <!-- 🧠 SMART NEXT TASK WIDGET -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <div class="card border-0 shadow-lg text-white"
+                    style="background: linear-gradient(135deg, #FF6B6B 0%, #556270 100%); border-radius: 15px; overflow: hidden;">
+                    <div class="card-body p-5">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <!-- CONTEXT HEADER -->
+                                <div
+                                    style="display: flex; gap: 30px; margin-bottom: 20px; font-size: 0.8rem; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px;">
+                                    <div id="lastDoneTask" style="text-align: left;">
+                                        <i class="fas fa-check-circle text-success me-1"></i> Prev: None
+                                    </div>
+                                    <div id="nextUpcomingTask" style="text-align: left;">
+                                        Next: None <i class="fas fa-arrow-right ms-1"></i>
+                                    </div>
+                                </div>
+
+                                <h6 class="text-uppercase letter-spacing-2 mb-2"
+                                    style="opacity: 0.8; font-weight: bold; color: #fff;">📅 Your Mission Today</h6>
+                                <h1 class="display-4 fw-bold mb-3" id="nextTaskTitle"
+                                    style="font-size: 2.5rem; text-shadow: 0 4px 10px rgba(0,0,0,0.3);">Loading
+                                    Mission...</h1>
+
+                                <div
+                                    style="display: flex; gap: 20px; color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.2); padding: 10px 20px; border-radius: 8px; width: fit-content; backdrop-filter: blur(5px);">
+                                    <span id="nextTaskCollection" style="color: #00ff88; font-weight: bold;">📂 Finding
+                                        Collection...</span>
+                                    <span id="nextTaskBPM">💓 -- BPM</span>
+                                    <span id="nextTaskProgress">📊 0/20 Ready</span>
+                                </div>
+                            </div>
+
+                            <!-- ACTION BUTTONS (Right Aligned) -->
+                            <div class="text-end" style="margin-top: 40px; margin-left: 30px;">
+                                <div style="margin-bottom: 10px;">
+                                    <button onclick="skipTask()" class="btn btn-outline-light btn-sm"
+                                        style="width: 100%; border: 1px solid rgba(255,255,255,0.3); padding: 8px 15px; border-radius: 50px; margin-bottom: 10px; opacity: 0.7;">
+                                        ⏭ Skip / Done
+                                    </button>
+                                </div>
+                                <button onclick="startMission()"
+                                    style="background: white; color: #333; padding: 15px 30px; border-radius: 50px; font-weight: bold; border: none; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); white-space: nowrap;">
+                                    🚀 START PRODUCTION
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Auto-Generated Prompts Section (Hidden by default) -->
+                        <div id="missionControl"
+                            style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); display: none;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div>
+                                    <h5 style="margin-bottom: 10px;">📂 Resources</h5>
+                                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; cursor: pointer; transition: background 0.2s;"
+                                        onclick="openMusicFolder()"
+                                        onmouseover="this.style.background='rgba(0,0,0,0.5)'"
+                                        onmouseout="this.style.background='rgba(0,0,0,0.3)'">
+                                        <code id="downloadPath"
+                                            style="color: #00ff88; word-break: break-all; pointer-events: none;">📂 Open Music Folder</code>
+                                        <i class="fas fa-folder-open ms-2" style="font-size: 0.8rem; color: #aaa;"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h5 style="margin-bottom: 10px;">📝 Quick Actions</h5>
+                                    <button id="copyPersonaBtn" onclick="copyToClipboard(this.dataset.prompt)"
+                                        data-prompt="Loading..."
+                                        style="background: transparent; border: 1px solid white; color: white; padding: 5px 15px; border-radius: 20px; cursor: pointer; margin-right: 10px;">📋
+                                        Copy Persona</button>
+                                    <button onclick="loadPrompts()"
+                                        style="background: transparent; border: 1px solid white; color: white; padding: 5px 15px; border-radius: 20px; cursor: pointer;">🤖
+                                        Load Music Prompts</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Auto-load Next Task on Page Load
+            document.addEventListener('DOMContentLoaded', async () => {
+                try {
+                    const res = await fetch('/api/next-task');
+                    const data = await res.json();
+
+                    // 1. Update Current Task (Mission)
+                    const task = data.current;
+                    if (task) {
+                        document.getElementById('nextTaskTitle').innerText = task.name || "Unnamed Task";
+                        document.getElementById('nextTaskCollection').innerHTML = `📂 ${task.active_workspace_id || task.catalog_tag}`;
+                        document.getElementById('nextTaskBPM').innerHTML = `💓 ${task.bpm_min}-${task.bpm_max} BPM`;
+                        document.getElementById('nextTaskProgress').innerHTML = `📊 ${task.tracks_completed}/${task.tracks_total}`;
+
+                        // Set path if available
+                        const dlPath = task.download_subpath ? `./workspace\\Drop Suno Songs Here\\${task.download_subpath}` : "Path not set";
+                        document.getElementById('downloadPath').innerText = dlPath;
+
+                        // Set Persona Prompt
+                        const btn = document.getElementById('copyPersonaBtn');
+                        if (task.persona_prompt) {
+                            btn.dataset.prompt = task.persona_prompt;
+                            btn.title = task.persona_prompt.substring(0, 100) + "..."; // Tooltip
+                        } else {
+                            btn.dataset.prompt = "Error: No prompt found.";
+                        }
+
+                    } else {
+                        document.getElementById('nextTaskTitle').innerText = "🎉 All Caught Up!";
+                        document.querySelector('button').innerText = "Relax";
+                    }
+
+                    // 2. Update Context (Last / Next)
+                    if (data.last) {
+                        document.getElementById('lastDoneTask').innerHTML = `<i class="fas fa-check-circle text-success me-1"></i> Prev: <strong>${data.last.name}</strong>`;
+                    }
+                    if (data.next) {
+                        document.getElementById('nextUpcomingTask').innerHTML = `Up Next: <strong>${data.next.name}</strong> <i class="fas fa-arrow-right ms-1"></i>`;
+                    }
+
+                } catch (e) {
+                    console.error("Failed to load task", e);
+                }
+            });
+
+            function startMission() {
+                const mc = document.getElementById('missionControl');
+                mc.style.display = mc.style.display === 'none' ? 'block' : 'none';
+            }
+
+
+            async function skipTask() {
+                if (!confirm("Mark this task as DONE and move to the next one?")) return;
+
+                await fetch('/api/skip-task', { method: 'POST' });
+                location.reload(); // Quick refresh to see next task
+            }
+
+            async function openLocalFolder() {
+                const path = document.getElementById('downloadPath').innerText;
+                if (path === "Path not set" || path === "...") return;
+
+                await fetch('/api/open-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path })
+                });
+            }
+
+            async function openMusicFolder() {
+                // Use the collection name from the UI or task object if available globally
+                // For now, we scrape it from the UI or use ACTIVE_GENRE if set
+                let genre = null;
+                const collectionEl = document.getElementById('nextTaskCollection');
+                if (collectionEl) {
+                    // Extract "Soul Jazz" from "📂 Soul Jazz"
+                    genre = collectionEl.innerText.replace('📂 ', '').trim();
+                }
+
+                await fetch('/api/open-special-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'music_source', genre: genre })
+                });
+            }
+
+            async function openIngestFolder() {
+                await fetch('/api/open-special-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'ingest' })
+                });
+            }
+
+            async function openOutputFolder() {
+                // Determine active genre if any
+                const genre = typeof ACTIVE_GENRE !== 'undefined' ? ACTIVE_GENRE : null;
+                await fetch('/api/open-special-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'output', genre: genre })
+                });
+            }
+
+            async function loadPrompts() {
+                const btn = document.querySelector('button[onclick="loadPrompts()"]');
+                if (btn) btn.innerText = "⏳ Generating...";
+
+                try {
+                    const res = await fetch('/api/generate-prompts', { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.success) {
+                        alert("✅ Prompts Loaded! Click 'Start Production' to see them.");
+                        location.reload();
+                    } else {
+                        alert("❌ Error: " + data.error);
+                    }
+                } catch (e) {
+                    alert("❌ Network Error");
+                }
+                if (btn) btn.innerText = "🤖 Load Prompts";
+            }
+
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text);
+                alert("Copied!");
+            }
+        </script>
+
+
+        <div class="dashboard-grid" id="genre-grid">
+            <!-- Injected -->
+        </div>
+
+        <div style="margin-top: 50px; border-top: 1px solid #333; padding-top: 20px; text-align: center;">
+            <p style="color: #444;">Need to Ingest Files? Go to <a href="#" onclick="openIngestAll()"
+                    style="color: #666;">Global Ingest</a></p>
+        </div>
+    </div>
+
+    <!-- VIEW 2: FOCUS WORKSPACE -->
+    <div id="view-workspace" class="workspace-overlay">
+        <div class="workspace-header">
+            <div style="display:flex; align-items:center;">
+                <span id="ws-title" class="workspace-title">Lounge Vibes</span>
+                <span id="ws-active-genre"
+                    style="color:#00ff88; margin-left:12px; font-weight:bold; font-size:1.1rem; border-left:2px solid #333; padding-left:12px;">ACTIVE</span>
+                <div style="display:flex; align-items:center; margin-left:20px;">
+                    <span class="workspace-subtitle">Vol.</span>
+                    <input id="ws-vol-input" type="number" value="1" min="1"
+                        style="background:transparent; border:none; border-bottom:1px solid #666; color:#888; width:40px; text-align:center; font-size:1rem; margin-left:5px;"
+                        onchange="updateVolumeOverride()">
+                </div>
+            </div>
+
+            <div class="session-timer" id="session-timer">00:00:00</div>
+
+            <div>
+                <button class="btn btn-secondary" onclick="exitWorkspace()">❌ Exit Session</button>
+            </div>
+        </div>
+
+        <!-- PROGRESS STEPS -->
+        <div class="progress-tracker">
+            <div id="step-1" class="step-item active">1. Music Prompt</div>
+            <div id="step-2" class="step-item">2. Playlist Title</div>
+            <div id="step-3" class="step-item">3. Ingest Songs</div>
+            <div id="step-4" class="step-item">4. Build Full Video</div>
+        </div>
+
+        <div class="editor-grid">
+            <!-- PANEL 1: MASTER PLAYLIST PROMPTS -->
+            <div class="editor-panel" style="grid-column: span 8;">
+                <div class="editor-label">
+                    <span>🎵 Master Playlist (From CSV)</span>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn"
+                            style="font-size: 0.8rem; padding: 5px 15px; background: linear-gradient(45deg, #FF0080, #7928CA); border:none; color:white;"
+                            onclick="generateBatchPrompts()">
+                            ✨ AI Generate Batch
+                        </button>
+                        <button class="btn" style="font-size: 0.8rem; padding: 5px 15px;" onclick="loadMasterData()">🔄
+                            Refresh</button>
+                    </div>
+                </div>
+                <div id="batch-prompts-container"
+                    style="max-height: 400px; overflow-y: auto; background: #08080a; border-radius: 5px; padding: 10px;">
+                    <div style="color: #666; text-align: center; padding: 50px;">
+                        Loading Master Data...
+                    </div>
+                </div>
+                <div class="copy-bar" style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                    <span id="batch-status" style="color: #00ff88; font-size: 0.8rem;"></span>
+                    <span style="flex:1;"></span>
+                    <span style="color: #666; font-size: 0.75rem;">Completed: <span
+                            id="progress-counter">0/0</span></span>
+                </div>
+            </div>
+
+            <!-- PANEL 2: YOUTUBE SEO SECTION -->
+            <div class="editor-panel" style="grid-column: span 4;">
+                <div class="editor-label">
+                    <span>🎬 YouTube SEO</span>
+                    <button class="btn" style="font-size: 0.7rem; padding: 4px 10px;" onclick="generateYouTubeSEO()">🔄
+                        Generate</button>
+                </div>
+
+                <!-- YouTube Title -->
+                <div style="margin-bottom: 20px;">
+                    <label
+                        style="color:#888; font-size:0.8rem; display:block; margin-bottom:6px; font-weight:600;">Video
+                        Title (SEO Optimized)</label>
+                    <textarea id="yt-title" class="big-textarea"
+                        style="height: 100px; font-size: 1.1rem; color:#00ff88;" readonly></textarea>
+                    <button class="btn btn-secondary"
+                        style="width:100%; margin-top:10px; font-size:0.9rem; padding:12px;"
+                        onclick="copyYouTubeTitle()">📋 Copy Title</button>
+                </div>
+
+                <!-- YouTube Description -->
+                <div>
+                    <label
+                        style="color:#888; font-size:0.8rem; display:block; margin-bottom:6px; font-weight:600;">Description
+                        Template</label>
+                    <textarea id="yt-description" class="big-textarea" style="height: 350px; font-size: 1rem;"
+                        readonly></textarea>
+                    <button class="btn btn-secondary"
+                        style="width:100%; margin-top:10px; font-size:0.9rem; padding:12px;"
+                        onclick="copyYouTubeDescription()">📋 Copy Description</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SESSION INFO BAR -->
+        <div
+            style="margin-top: 10px; background: #1a1a24; padding: 10px 15px; border-radius: 8px; border: 1px solid #333; display:flex; gap:15px; align-items:center;">
+            <div style="flex:1;">
+                <span style="color: #00ff88; font-weight: bold; font-size: 0.85rem;">📊 Session Summary</span>
+                <div style="color:#888; font-size:0.75rem; margin-top:2px;">
+                    12 prompts → 24 songs → 80-100 min playlist → 1 YouTube video
+                </div>
+            </div>
+            <button class="btn" style="font-size: 0.8rem; padding: 6px 15px;" onclick="openIngestForActive()">📂 Open
+                Production for <span id="ws-btn-genre">Genre</span></button>
+        </div>
+
+        <!-- Hidden textarea for workspace logic (needed by enterWorkspace) -->
+        <textarea id="ws-music-prompt" style="display:none;"></textarea>
+        <textarea id="ws-title-text" style="display:none;"></textarea>
+        <textarea id="ws-desc-text" style="display:none;"></textarea>
+    </div>
+
+    <!-- VIEW 3: INGEST (Overlay on top of Workspace or Dash) -->
+    <div id="view-ingest" class="workspace-overlay" style="z-index: 200; background: #0b0c15;">
+        <div class="workspace-header">
+            <div>
+                <span class="workspace-title">Production Studio</span>
+                <span id="ingest-subtitle" class="workspace-subtitle">Ingest & Build</span>
+            </div>
+            <div>
+                <button class="btn btn-secondary" onclick="closeIngest()">🔙 Back</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- DESIGNER (Restored per user request) -->
+            <div class="section-title">1. The Designer</div>
+            <div class="designer-section" style="display:flex; gap:20px; margin-bottom:40px;">
+                <div style="flex:1; background:#111; padding:15px; border-radius:8px; height:400px; overflow-y:auto;">
+                    <details>
+                        <summary
+                            style="cursor:pointer; color:var(--primary-color); font-weight:bold; margin-bottom:10px;">
+                            🛠️ Open Designer Controls</summary>
+                        <div class="designer-controls" id="designer-controls">
+                            <!-- Controls Injected Here -->
+                        </div>
+
+                        <div
+                            style="display:flex; gap:10px; margin-top:15px; border-top:1px solid #333; padding-top:15px;">
+                            <button class="btn" style="flex:1; font-size:0.85rem;" onclick="saveThumbnail()">💾 Save
+                                Thumbnail</button>
+                            <button class="btn btn-secondary" style="flex:1; font-size:0.85rem;"
+                                onclick="openOutputFolder()">📂 Open Folder</button>
+                        </div>
+                        <div id="thumb-save-status" style="margin-top:5px; font-size:0.8rem;"></div>
+
+                        <div style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
+                            <label
+                                style="color:var(--primary-color); font-weight:bold; display:block; margin-bottom:5px;">Background
+                                Override</label>
+                            <input type="file" id="bg-override-input" accept="image/*" style="width:100%; color:#888;"
+                                onchange="handleBackgroundUpload(this.files)">
+                            <div style="font-size:0.7rem; color:#666; margin-top:2px;">Select an image to force-use it
+                                for this video.</div>
+                        </div>
+                    </details>
+                    <div style="margin-top:20px; font-size:0.8rem; color:#666;">
+                        <p>ℹ️ These settings adjust the text over the image.</p>
+                        <p>Launch the factory to burn them into the video.</p>
+                    </div>
+                </div>
+                <div class="designer-preview" style="flex:2;">
+                    <canvas id="thumbnail-preview-canvas"
+                        style="width:100%; border-radius:8px; border:1px solid #333;"></canvas>
+                </div>
+            </div>
+
+            <!-- INGEST -->
+            <div class="section-title">2. Ingest Songs</div>
+
+            <!-- NEW: Suno Ingest Button -->
+            <div
+                style="background:#1a2a1a; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid var(--primary-color);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div>
+                        <span style="color:var(--primary-color); font-weight:bold;">📂 Suno_Ingest Folder</span>
+                        <span id="ingest-count" style="color:#888; margin-left:10px;">Checking...</span>
+                    </div>
+                    <button onclick="openIngestFolder()"
+                        style="background:#333; color:#888; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Open
+                        Folder</button>
+                </div>
+                <p style="color:#888; font-size:0.85rem; margin-bottom:15px;">
+                    <strong>Step 1:</strong> Drop files in folder. <br>
+                    <strong>Step 2:</strong> Click the <strong>Green Button</strong> to import. (Use Preview to check
+                    names first).
+                </p>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="previewIngest()" class="btn btn-secondary" style="flex:1;">👁️ 1. Preview Rename
+                        (Optional)</button>
+                    <button onclick="executeIngest()" class="btn" style="flex:1;">🚀 2. Auto-Import Songs
+                        (Start)</button>
+                </div>
+                <div id="ingest-preview"
+                    style="margin-top:10px; color:#888; font-size:0.8rem; max-height:150px; overflow-y:auto;"></div>
+            </div>
+
+            <!-- Existing drag-drop (fallback) -->
+            <div class="dropnote-zone" id="drop-zone" style="opacity:0.7;">
+                <h2>Or: Drag & Drop Pre-Named Songs</h2>
+                <p id="ingest-target-text" style="color:#666; margin-bottom: 20px;">Target: ...</p>
+                <div id="ingest-status" style="color: var(--primary-color);"></div>
+            </div>
+
+
+            <!-- FACTORY -->
+            <div class="section-title">3. Build</div>
+
+            <!-- PHASE 6: MMQ GATE -->
+            <div
+                style="margin-bottom: 15px; padding: 15px; background: #111; border: 1px solid var(--primary-color); border-radius: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="mmq-certify"
+                        style="width: 20px; height: 20px; margin-right: 15px; accent-color: var(--primary-color);">
+                    <div>
+                        <div style="color: #00ff88; font-weight: bold; font-size: 0.9rem;">🛡️ QUALITY GATE
+                            CERTIFICATION</div>
+                        <div style="color: #888; font-size: 0.8rem;">I certify that these tracks match the Active Sound
+                            Lock and meet output quality standards.</div>
+                    </div>
+                </label>
+            </div>
+
+            <button id="btn-process" class="btn" onclick="startProcessing()">🚀 LAUNCH FACTORY</button>
+            <div class="terminal" id="log-window" style="margin-top: 20px;"></div>
+
+            <div class="section-title" style="margin-top:30px; border-top:1px solid #333; padding-top:20px;">4. Publish
+            </div>
+
+            <!-- YouTube Metadata Manual Override -->
+            <div style="background:#222; padding:15px; border-radius:8px; margin-bottom:10px; border:1px solid #444;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <label style="color:#888; font-size:0.8rem; margin:0;">VIDEO TITLE</label>
+                    <button class="btn"
+                        style="font-size: 0.7rem; padding: 4px 10px; background: linear-gradient(45deg, #FF0080, #7928CA); border:none; color:white;"
+                        onclick="generateSEO()">
+                        ✨ Auto-Generate SEO
+                    </button>
+                </div>
+                <input type="text" id="video-title" placeholder="Enter exact YouTube Title..."
+                    style="width:100%; background:#111; color:#fff; border:1px solid #333; padding:8px; margin-bottom:10px;">
+
+                <label style="display:block; color:#888; margin-bottom:5px; font-size:0.8rem;">DESCRIPTION</label>
+                <textarea id="video-desc" rows="3" placeholder="Enter video description..."
+                    style="width:100%; background:#111; color:#fff; border:1px solid #333; padding:8px;"></textarea>
+            </div>
+            <div
+                style="background:#1a1a24; padding:15px; border-radius:8px; display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                    <div style="font-weight:bold; color:#fff;">YouTube Integration</div>
+                    <div style="font-size:0.8rem; color:#666;">Uploads the latest generated video to your channel.</div>
+                </div>
+                <button id="btn-upload" class="btn" style="background:#FF0000;" onclick="startUpload()">📺 Upload to
+                    YouTube</button>
+            </div>
+            <div id="upload-status" style="margin-top:10px; color:#aaa; font-family:monospace;"></div>
+
+            <!-- MANUAL UPLOAD FALLBACK -->
+            <details style="margin-top:20px;">
+                <summary
+                    style="cursor:pointer; color:var(--primary-color); font-weight:bold; background:#1a2a1a; padding:10px; border-radius:8px;">
+                    📂 Manual Upload (Fallback) - Click to expand
+                </summary>
+                <div style="background:#111; padding:15px; border-radius:0 0 8px 8px; margin-top:5px;">
+                    <p style="color:#888; font-size:0.85rem; margin-bottom:15px;">
+                        Use this when automation fails. Select your pre-made video and thumbnail, then upload directly.
+                    </p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+                        <div>
+                            <label
+                                style="display:block; color:var(--primary-color); margin-bottom:5px; font-size:0.85rem;">📹
+                                Video File (MP4)</label>
+                            <input type="file" id="manual-video-input" accept="video/mp4,video/*"
+                                style="width:100%; color:#888; background:#0a0a0f; border:1px solid #333; padding:8px; border-radius:4px;">
+                        </div>
+                        <div>
+                            <label
+                                style="display:block; color:var(--primary-color); margin-bottom:5px; font-size:0.85rem;">🖼️
+                                Thumbnail (JPG/PNG)</label>
+                            <input type="file" id="manual-thumb-input" accept="image/jpeg,image/png,image/*"
+                                style="width:100%; color:#888; background:#0a0a0f; border:1px solid #333; padding:8px; border-radius:4px;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; color:#888; margin-bottom:5px; font-size:0.8rem;">Manual
+                            Title</label>
+                        <input type="text" id="manual-title-input" placeholder="Enter YouTube title..."
+                            style="width:100%; background:#0a0a0f; color:#fff; border:1px solid #333; padding:8px; border-radius:4px;">
+                    </div>
+
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; color:#888; margin-bottom:5px; font-size:0.8rem;">Manual
+                            Description</label>
+                        <textarea id="manual-desc-input" rows="4" placeholder="Enter description..."
+                            style="width:100%; background:#0a0a0f; color:#fff; border:1px solid #333; padding:8px; border-radius:4px;"></textarea>
+                    </div>
+
+                    <button class="btn" style="background:#FF0000; width:100%;" onclick="manualUploadToYouTube()">
+                        📺 Upload Manual Files to YouTube
+                    </button>
+                    <div id="manual-upload-status" style="margin-top:10px; color:#aaa; font-family:monospace;"></div>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- AI BRAIN LOGIC -->
+    <script>
+        function generateBatchPrompts() {
+            if (!ACTIVE_GENRE) return alert("No active genre!");
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "🧠 Thinking...";
+            btn.disabled = true;
+
+            fetch('/api/brain/generate_prompts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ genre: ACTIVE_GENRE, count: 10 })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) throw new Error(res.error);
+
+                    // Render the new prompts into the container
+                    const container = document.getElementById('batch-prompts-container');
+                    container.innerHTML = "";
+
+                    res.prompts.forEach(p => {
+                        const div = document.createElement('div');
+                        div.style.cssText = "background:#111; padding:10px; margin-bottom:10px; border-left:3px solid #7928CA; font-size:0.9rem;";
+                        div.innerHTML = `
+                        <div style="color:#7928CA; font-weight:bold; font-size:0.8rem; margin-bottom:4px;">
+                            ${p.bpm} BPM | ${p.key} | ${p.lead}
+                        </div>
+                        <div style="color:#ccc;">${p.prompt}</div>
+                        <div style="text-align:right; margin-top:5px;">
+                            <button style="background:none; border:none; color:#555; cursor:pointer; font-size:0.8rem;" 
+                                onclick="navigator.clipboard.writeText('${p.prompt.replace(/'/g, "\\'")}')">📋 Copy</button>
+                        </div>
+                    `;
+                        container.appendChild(div);
+                    });
+
+                    alert(`✅ Generated ${res.prompts.length} smart prompts!`);
+                })
+                .catch(e => alert("AI Error: " + e.message))
+                .finally(() => {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                });
+        }
+
+        function generateSEO() {
+            if (!ACTIVE_GENRE) return alert("No active genre!");
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "🧠 Writing...";
+            btn.disabled = true;
+
+            const vol = document.getElementById('ws-vol-input').value || 1;
+
+            fetch('/api/brain/generate_metadata', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    genre: ACTIVE_GENRE,
+                    mix_info: { vol: vol }
+                })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.error) throw new Error(res.error);
+
+                    const data = res.data;
+                    document.getElementById('video-title').value = data.title;
+                    document.getElementById('video-desc').value = data.description + "\n\nTags:\n" + data.tags.join(', ');
+
+                    alert("✅ SEO Metadata Generated!");
+                })
+                .catch(e => alert("AI Error: " + e.message))
+                .finally(() => {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                });
+        }
+
+
+        // GLOBAL STATE
+        let VIBES = {};
+        let ACTIVE_GENRE = null;
+        let sessionInterval = null;
+        let sessionStartTime = null;
+        let OVERRIDE_BG_IMAGE = null; // Stores filename of manually selected bg
+
+        function handleBackgroundUpload(files) {
+            if (!ACTIVE_GENRE || files.length === 0) return;
+            const formData = new FormData();
+            formData.append('genre', ACTIVE_GENRE);
+            formData.append('type', 'asset'); // Important: Save to Assets folder
+            formData.append('files', files[0]);
+
+            fetch('/api/upload', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.files && res.files.length > 0) {
+                        OVERRIDE_BG_IMAGE = res.files[0]; // filename
+                        log("✅ Background Overridden: " + OVERRIDE_BG_IMAGE);
+
+                        // Force update preview to this specific image
+                        // We use the same generic route but simpler to just reload preview background 
+                        // as the backend doesn't know about this override yet unless we pass it or 
+                        // just simpler: Orchestrator logic picks the Newest, and we just uploaded it, so it IS the newest.
+                        // BUT for consistency, verify visual correctness:
+                        // The /api/preview/background logic logic picks newest. So it matches!
+                        refreshPreviewBackground();
+                    }
+                });
+        }
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVibes();
+            setupDesigner();
+            // Poll for ingest
+            setInterval(checkIngestStatus, 5000);
+            checkIngestStatus();
+        });
+
+        function loadVibes() {
+            Promise.all([
+                fetch('/api/soundlocks').then(r => r.json()),
+                fetch('/api/workflow/state?t=' + Date.now()).then(r => r.json())
+            ]).then(([locks, state]) => {
+                SOUND_LOCKS = locks;
+                VIBES = state;
+                renderDashboard();
+                loadMasterData();
+            });
+        }
+
+        // --- MASTER DATA LOGIC ---
+        let MASTER_DATA = [];
+
+        function loadMasterData() {
+            fetch('/api/master/load')
+                .then(r => r.json())
+                .then(res => {
+                    if (res.data) {
+                        MASTER_DATA = res.data;
+                        console.log(`Loaded ${MASTER_DATA.length} master rows`);
+                        // Update debug footer
+                        const footer = document.getElementById('debug-footer') || document.createElement('div');
+                        footer.id = 'debug-footer';
+                        footer.style.cssText = 'position:fixed; bottom:5px; right:5px; color:#555; text-align:right; font-size:0.7rem; pointer-events:none;';
+                        footer.innerText = `Loaded ${SOUND_LOCKS.length} Locks | ${MASTER_DATA.length} CSV Rows`;
+                        document.body.appendChild(footer);
+
+                        // NEW: Auto-refresh view if open
+                        if (ACTIVE_GENRE) renderMasterPrompts(ACTIVE_GENRE);
+                    }
+                });
+        }
+
+        // --- DASHBOARD (SOUND LOCK VIEW) ---
+        function renderDashboard() {
+            const grid = document.getElementById('genre-grid');
+            grid.innerHTML = "";
+
+            SOUND_LOCKS.forEach(lock => {
+                // Match Lock to Disk State via Genre Name
+                const key = lock.genre_primary;
+                const val = VIBES[key] || { next_vol: 1, status: 'Ready' };
+
+                const tile = document.createElement('div');
+                tile.className = 'vibe-tile';
+                tile.style.position = 'relative'; // For absolute number positioning
+
+                // DISPLAY NUMBER LOGIC
+                let numBadge = '';
+                let displayNum = '';
+                if (lock.display_number) {
+                    displayNum = `#${String(lock.display_number).padStart(2, '0')}`;
+                    numBadge = `<div style="
+                        position: absolute;
+                        top: 10px;
+                        right: 15px;
+                        font-family: 'Consolas', monospace;
+                        font-size: 1.2rem;
+                        font-weight: bold;
+                        color: var(--primary-color);
+                        z-index: 1;
+                        text-shadow: 0px 0px 10px rgba(0,255,136,0.3);
+                    ">${displayNum}</div>`;
+                }
+
+                tile.innerHTML = `
+                    ${numBadge}
+                    <div style="font-size: 2rem; margin-bottom: 10px; position:relative; z-index:1;">🔒</div>
+                    <div style="font-weight:bold; color:var(--primary-color); font-size:1.1rem; position:relative; z-index:1;">${lock.name}</div>
+                    <div style="font-size:0.8rem; color:#888; margin:5px 0; position:relative; z-index:1;">${lock.description}</div>
+                    <div style="font-size:0.75rem; color:#555; margin-top:10px; position:relative; z-index:1;">Genre: ${lock.genre_primary}</div>
+                    <div style="font-size:0.75rem; color:#555; position:relative; z-index:1;">Next: Vol. ${String(val.next_vol).padStart(2, '0')}</div>
+                `;
+                tile.onclick = () => {
+                    console.log("Activating Sound Lock: " + lock.id);
+                    // Pass the number to the workspace
+                    lock._displayNum = displayNum;
+                    enterWorkspace(lock);
+                };
+                grid.appendChild(tile);
+            });
+        }
+
+        // --- WORKSPACE LOGIC ---
+        function enterWorkspace(lock) {
+            console.log("Entering workspace for lock: ", lock);
+
+            // 1. Tell Backend to LOCK this profile
+            fetch('/api/soundlock/set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: lock.id })
+            });
+
+            // 2. Setup Client State
+            const genre = lock.genre_primary;
+            ACTIVE_GENRE = genre;
+            const diskState = VIBES[genre] || { next_vol: 1 };
+
+            try {
+                // UI Helpers
+                const safeSetText = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.innerText = val;
+                    else console.warn("Missing element for text: " + id);
+                };
+                const safeSetValue = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val || '';
+                    else console.warn("Missing element for value: " + id);
+                };
+
+                // Title Logic: Include Number if available
+                const titleText = lock._displayNum ? `${lock._displayNum} ${lock.name}` : lock.name;
+                safeSetText('ws-title', titleText);
+
+                safeSetText('ws-active-genre', genre);
+                safeSetValue('ws-vol-input', diskState.next_vol);
+
+                // Prompt is now READ ONLY from Lock
+                // We construct a display string
+                // Check if moods matches expectation
+                const moodsStr = lock.moods ? lock.moods.join(', ') : '';
+                const promptDisplay = `[LOCKED] ${lock.genre_primary}, ${lock.bpm_min}-${lock.bpm_max} BPM, ${moodsStr}`;
+                safeSetValue('ws-music-prompt', promptDisplay);
+
+                // Trigger title gen
+                generateNewTitle(true);
+
+                // Construct Description using Lock Data
+                // Mock data object for legacy function
+                const mockData = { name: genre, next_vol: diskState.next_vol, prompt: promptDisplay };
+                generateDescription(mockData);
+
+                renderMasterPrompts(genre);
+                safeSetText('ws-btn-genre', genre);
+                startSessionTimer();
+
+                document.getElementById('view-workspace').style.display = 'flex';
+
+            } catch (e) {
+                console.error(e);
+                alert("Error opening workspace: " + e.message);
+            }
+        }
+
+        function exitWorkspace() {
+            document.getElementById('view-workspace').style.display = 'none';
+            ACTIVE_GENRE = null;
+            if (sessionInterval) clearInterval(sessionInterval);
+        }
+
+        function startSessionTimer() {
+            sessionStartTime = Date.now();
+            if (sessionInterval) clearInterval(sessionInterval);
+            sessionInterval = setInterval(() => {
+                const now = Date.now();
+                const diff = now - sessionStartTime;
+
+                // Format HH:MM:SS manually to avoid timezone issues
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+
+                const str = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                const el = document.getElementById('session-timer');
+                if (el) el.innerText = str;
+            }, 1000);
+        }
+
+        function updateVolumeOverride() {
+            if (!ACTIVE_GENRE) return;
+            const newVol = document.getElementById('ws-vol-input').value;
+            // Update backend state
+            fetch('/api/workflow/update', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ genre: ACTIVE_GENRE, next_vol: newVol })
+            }).then(() => {
+                // Regenerate Title with new Volume
+                generateNewTitle();
+            });
+        }
+
+        function generateNewTitle(isInit = false) {
+            if (!ACTIVE_GENRE) return;
+            fetch('/api/workflow/generate_title', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ genre: ACTIVE_GENRE })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    document.getElementById('ws-title-text').value = res.title;
+                    if (isInit) updateDesignerInputs(); // Force inputs to update on load
+                });
+        }
+
+        function updateDesignerInputs() {
+            if (!ACTIVE_GENRE) return;
+
+            // 1. Update the stored configuration values to match the current Genre/Title/Vol
+            // This ensures the inputs (when re-rendered) show the actual text, not the placeholders.
+            DEFAULTS[1].text = ACTIVE_GENRE.toUpperCase();
+            DEFAULTS[2].text = (document.getElementById('ws-title-text').value || "MIX TITLE").toUpperCase();
+            DEFAULTS[3].text = `VOL. ${String(document.getElementById('ws-vol-input').value).padStart(2, '0')}`;
+
+            console.log("Updating Designer Inputs with:", DEFAULTS[1].text, DEFAULTS[2].text);
+
+            // 2. Re-render the controls so the input fields show these new values
+            renderDesignerControls();
+
+            // 3. Update the canvas preview
+            updatePreview();
+        }
+
+        function generateDescription(data) {
+            // Client-side generation with tracklist from API
+            if (!data) return;
+
+            const genre = data.name;
+            const vol = String(data.next_vol).padStart(2, '0');
+            const promptText = data.prompt || "";
+
+            // Fetch tracklist from API
+            fetch(`/api/tracklist/${encodeURIComponent(genre)}`)
+                .then(r => r.json())
+                .then(tracklistData => {
+                    const tracklist = tracklistData.tracklist || '';
+
+                    // Build full description with tracklist
+                    let desc = `🎵 ${genre} Mix Vol. ${vol} | BussGroove\n\n`;
+                    desc += `${promptText.replace(/,\\s*\\d+\\s*BPM/gi, '').substring(0, 200)}...\n\n`;
+
+                    if (tracklist) {
+                        desc += tracklist + '\n\n';
+                    } else {
+                        desc += `Tracklist in comments.\n\n`;
+                    }
+
+                    desc += `Subscribe for more chill beats! 🎧\n\n`;
+                    desc += `#${genre.replace(/\\s+/g, '')} #BussGroove #LoFi #ChillBeats #StudyMusic`;
+
+                    document.getElementById('ws-desc-text').value = desc;
+
+                    // Also update the Publish section description
+                    const videoDescEl = document.getElementById('video-desc');
+                    if (videoDescEl) {
+                        videoDescEl.value = desc;
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to fetch tracklist:', err);
+                    // Fallback description without tracklist
+                    const desc = `Enjoy this new ${genre} Mix (Vol. ${vol}) by BussGroove!\n\n` +
+                        `🔥 Vibes: ${promptText.replace(/,\\s*\\d+\\s*BPM/gi, '')}\n\n` +
+                        `Tracklist in comments.\n\n` +
+                        `#${genre.replace(/\\s+/g, '')} #BussGroove #DeepHouse #AfroHouse #Music`;
+                    document.getElementById('ws-desc-text').value = desc;
+                });
+        }
+
+
+        function copyText(id, stepNum) {
+            const el = document.getElementById(id);
+            el.select();
+            navigator.clipboard.writeText(el.value);
+
+            // Visual Feedback
+            const oldBg = el.style.background;
+            el.style.background = "#1a3a2a";
+            setTimeout(() => el.style.background = oldBg, 200);
+
+            // Update Status backend
+            if (ACTIVE_GENRE) {
+                fetch('/api/workflow/update', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ genre: ACTIVE_GENRE, status: 'Generating' })
+                });
+            }
+        }
+
+        // --- SUNO INGEST FUNCTIONS ---
+        function checkIngestStatus() {
+            fetch('/api/ingest/status')
+                .then(r => r.json())
+                .then(data => {
+                    const countEl = document.getElementById('ingest-count');
+                    if (countEl) {
+                        countEl.textContent = data.file_count > 0
+                            ? `${data.file_count} files waiting`
+                            : 'Empty - add songs first';
+                        countEl.style.color = data.file_count > 0 ? 'var(--primary-color)' : '#666';
+                    }
+                });
+        }
+
+        function openIngestFolder() {
+            fetch('/api/open_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: './workspace/BussGroove/Suno_Ingest' })
+            });
+        }
+
+        function previewIngest() {
+            if (!ACTIVE_GENRE) {
+                alert('Please select a genre first!');
+                return;
+            }
+
+            const previewEl = document.getElementById('ingest-preview');
+            previewEl.innerHTML = '⏳ Checking...';
+
+            fetch(`/api/ingest/${encodeURIComponent(ACTIVE_GENRE)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dry_run: true })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        previewEl.innerHTML = `❌ ${data.error}`;
+                        return;
+                    }
+
+                    let html = `<div style="color:var(--primary-color);">📋 Preview: ${data.file_count} songs → ${data.mix_folder}</div>`;
+                    html += '<div style="margin-top:5px;">';
+                    data.preview.slice(0, 5).forEach(p => {
+                        html += `<div>• ${p.old_name} → <span style="color:var(--primary-color)">${p.new_name}</span></div>`;
+                    });
+                    if (data.preview.length > 5) {
+                        html += `<div style="color:#666;">...and ${data.preview.length - 5} more</div>`;
+                    }
+                    html += '</div>';
+                    previewEl.innerHTML = html;
+                })
+                .catch(err => {
+                    previewEl.innerHTML = `❌ Error: ${err}`;
+                });
+        }
+
+        function executeIngest() {
+            if (!ACTIVE_GENRE) {
+                alert('Please select a genre first!');
+                return;
+            }
+
+            if (!confirm(`Auto-rename and import all songs to "${ACTIVE_GENRE}"?`)) return;
+
+            const previewEl = document.getElementById('ingest-preview');
+            previewEl.innerHTML = '⏳ Processing...';
+
+            fetch(`/api/ingest/${encodeURIComponent(ACTIVE_GENRE)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dry_run: false })
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        previewEl.innerHTML = `❌ ${data.error}`;
+                        return;
+                    }
+
+                    previewEl.innerHTML = `<div style="color:var(--primary-color); font-weight:bold;">${data.message}</div>`;
+                    checkIngestStatus(); // Refresh count
+
+                    // Update ingest status display
+                    const statusEl = document.getElementById('ingest-status');
+                    if (statusEl) {
+                        statusEl.innerHTML = `<span style="color:var(--primary-color)">✅ ${data.moved_count} songs ready for processing</span>`;
+                    }
+                })
+                .catch(err => {
+                    previewEl.innerHTML = `❌ Error: ${err}`;
+                });
+        }
+
+        // Poll ingest status when workspace opens
+        setInterval(checkIngestStatus, 5000);
+        checkIngestStatus(); // Initial check
+
+        // --- MASTER PROMPTS RENDERER ---
+        let CURRENT_PLAYLIST_ROWS = [];
+
+        function renderMasterPrompts(genre) {
+            const container = document.getElementById('batch-prompts-container');
+            container.innerHTML = '';
+
+            // Filter Master Data
+            CURRENT_PLAYLIST_ROWS = MASTER_DATA.filter(r => r.Playlist_Name === genre || r.Collection === genre);
+
+            if (CURRENT_PLAYLIST_ROWS.length === 0) {
+                container.innerHTML = '<div style="color:#666; padding:20px; text-align:center;">No tracks found in CSV for: ' + genre + '</div>';
+                return;
+            }
+
+            CURRENT_PLAYLIST_ROWS.forEach((row, idx) => {
+                const isDone = row.Status && row.Status.toLowerCase().includes('done');
+                const isGenerating = row.Status && row.Status.toLowerCase().includes('generating');
+
+                // Construct Style/Lyrics for the buttons
+                // Suno Prompt in CSV is usually the Style
+                // Lyrics: usually Instrumental if no vocals
+
+                const card = document.createElement('div');
+                card.id = `track-${row.Track_ID}`;
+                let statusColor = '#444';
+                if (isDone) statusColor = '#00ff88';
+                if (isGenerating) statusColor = '#FFC107';
+
+                card.style.cssText = `display:flex; gap:10px; margin-bottom:8px; padding:10px; background:${isDone ? '#0a2a1a' : '#111'}; border-radius:8px; border-left:4px solid ${statusColor}; transition: all 0.3s;`;
+
+                card.innerHTML = `
+                    <div style="flex:0 0 40px; color:${isDone ? '#00ff88' : '#666'}; font-weight:bold; font-size:0.9rem;">
+                        ${(row.Track_ID || '?-00').split('-').pop()}
+                    </div>
+                    <div style="flex:1;">
+                        <div style="color:#fff; font-weight:600; margin-bottom:4px; font-size:0.9rem;">${row.Playlist_Name} - ${row.Track_ID}</div>
+                         <div style="font-size:0.8rem; color:#888; margin-bottom:6px; font-style:italic;">
+                            "${row.Mood_Twist || 'No mood'}"
+                        </div>
+                        <div style="display:flex; gap:6px; margin-bottom:6px;">
+                            <span style="background:#1a1a24; padding:2px 6px; border-radius:4px; font-size:0.7rem; color:#888;">${row.BPM} BPM</span>
+                            <span style="background:#1a1a24; padding:2px 6px; border-radius:4px; font-size:0.7rem; color:#888;">${row.Key}</span>
+                            <span style="background:#1a1a24; padding:2px 6px; border-radius:4px; font-size:0.7rem; color:#888;">${row.Lead_Instrument}</span>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                             <!-- COPY ACTIONS -->
+                            <button class="copy-btn" onclick="copyMasterField('${row.Track_ID}', 'style')" 
+                                style="background:#2a3a2a; border:1px solid #3a4a3a; color:#00ff88; padding:4px 10px; border-radius:5px; cursor:pointer; font-size:0.75rem;">
+                                📝 Style
+                            </button>
+                            <button class="copy-btn" onclick="copyMasterField('${row.Track_ID}', 'lyrics')" 
+                                style="background:#2a3a2a; border:1px solid #3a4a3a; color:#00ff88; padding:4px 10px; border-radius:5px; cursor:pointer; font-size:0.75rem;">
+                                🎼 Lyrics
+                            </button>
+                            <button class="copy-btn" onclick="copyMasterField('${row.Track_ID}', 'title')" 
+                                style="background:#2a3a2a; border:1px solid #3a4a3a; color:#00ff88; padding:4px 10px; border-radius:5px; cursor:pointer; font-size:0.75rem;">
+                                🏷️ Title
+                            </button>
+                            
+                             <!-- STATUS ACTIONS -->
+                            <button class="mark-done-btn" onclick="updateMasterStatus('${row.Track_ID}', 'Done')" 
+                                style="background:${isDone ? '#004422' : '#1a1a24'}; border:1px solid ${isDone ? '#00ff88' : '#333'}; color:${isDone ? '#00ff88' : '#666'}; padding:4px 10px; border-radius:5px; cursor:pointer; font-size:0.75rem; margin-left:auto;">
+                                ${isDone ? '✓ Done' : '○ Mark Done'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            updateProgressCounter();
+        }
+
+        function copyMasterField(trackId, field) {
+            const row = CURRENT_PLAYLIST_ROWS.find(r => r.Track_ID === trackId);
+            if (!row) return;
+
+            let text = "";
+            let msg = "";
+
+            if (field === 'style') {
+                text = row.Suno_Prompt || "";
+                msg = "📝 Style copied!";
+            } else if (field === 'lyrics') {
+                text = "[Instrumental]"; // Default for this genre usually
+                msg = "🎼 Lyrics (Instrumental) copied!";
+            } else if (field === 'title') {
+                text = row.Playlist_Name; // Using Playlist Name as song title temporarily? Or constructing one? 
+                // Wait, User wants "Track Title"? 
+                // The CSV has "Playlist_Name" and "Track_ID". 
+                // It does NOT have a specific "Song Title" column populated in the example (Title "Letting Things Settle" is the Playlist Name).
+                // Actually looking at CSV line 2: "Letting Things Settle" IS the Playlist Name.
+                // But the "Track Title" in column 1 of current file is missing.
+                // Wait, Row 1 has headers.
+                // Row 2: "BG-SOUL-01", "BussGroove", "Soul Jazz", "Letting Things Settle" (Playlist_Name).
+                // "Thumbnail_Text" has "Letting Things Settle".
+                text = row.Playlist_Name;
+                msg = "🏷️ Title copied!";
+            }
+
+            navigator.clipboard.writeText(text);
+            showCopyFeedback(msg);
+        }
+
+        function updateMasterStatus(trackId, status) {
+            const row = CURRENT_PLAYLIST_ROWS.find(r => r.Track_ID === trackId);
+            if (!row) return;
+
+            // Toggle logic if clicking done
+            if (status === 'Done' && row.Status === 'Done') status = '';
+
+            // Optimistic Update
+            row.Status = status;
+            renderMasterPrompts(ACTIVE_GENRE); // Re-render to show change
+
+            fetch('/api/master/update_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ track_id: trackId, status: status })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) alert("Error updating CSV: " + res.error);
+                });
+        }
+
+        function updateProgressCounter() {
+            const done = CURRENT_PLAYLIST_ROWS.filter(r => r.Status === 'Done').length;
+            const total = CURRENT_PLAYLIST_ROWS.length;
+            const el = document.getElementById('progress-counter');
+            if (el) el.innerText = `${done}/${total}`;
+        }
+
+        function showCopyFeedback(message) {
+            const status = document.getElementById('batch-status');
+            status.innerText = message;
+            status.style.color = '#00ff88';
+            setTimeout(() => {
+                // status.innerText = `✅ Ready! Copy each prompt to Suno`; 
+                status.innerText = "";
+            }, 2000);
+        }
+
+        // --- YOUTUBE SEO GENERATION ---
+        const YT_SEO_CONFIG = {
+            'Soul Jazz': {
+                keywords: 'Lo-Fi Jazz Hip Hop, Study Beats, Chill Hop, Focus Music',
+                mood: 'Reflective Soul Jazz',
+                setting: 'study, work, relaxation',
+                hashtags: '#LoFi #JazzHop #StudyBeats #ChillHop #FocusMusic #BussGroove'
+            },
+            'Groovy Jazz': {
+                keywords: 'Groovy Jazz Hip Hop, Upbeat Lo-Fi, Smooth Jazz Beats',
+                mood: 'Groovy Jazz Vibes',
+                setting: 'creative work, coffee shops, chill sessions',
+                hashtags: '#LoFi #GroovyJazz #ChillBeats #JazzHop #BussGroove'
+            },
+            'Study Sessions': {
+                keywords: 'Study Music, Focus Beats, Concentration Music, Lo-Fi Hip Hop',
+                mood: 'Deep Focus Study',
+                setting: 'studying, homework, research, deep work',
+                hashtags: '#StudyMusic #FocusBeats #LoFi #Concentration #BussGroove'
+            },
+            'Coffee Shop': {
+                keywords: 'Coffee Shop Music, Cafe Beats, Cozy Lo-Fi, Rainy Day Music',
+                mood: 'Cozy Coffee Shop',
+                setting: 'cafes, cozy afternoons, rainy days',
+                hashtags: '#CafeMusic #CozyVibes #LoFi #CoffeeShop #BussGroove'
+            },
+            'Sunday Morning': {
+                keywords: 'Peaceful Music, Sunday Morning Vibes, Relaxing Lo-Fi, Calm Beats',
+                mood: 'Peaceful Sunday Morning',
+                setting: 'lazy mornings, breakfast, relaxation',
+                hashtags: '#PeacefulMusic #SundayVibes #LoFi #RelaxMusic #BussGroove'
+            },
+            'Golden Hour': {
+                keywords: 'Afro Lounge Music, African Sunset Mix, Chill Afrobeat Instrumental',
+                mood: 'Golden Hour Sunset',
+                setting: 'hotels, spas, luxury lounges, evening relaxation',
+                hashtags: '#AfroLounge #AfricanSunset #ChillAfrobeat #LoungeMusic #BussGroove'
+            },
+            'Yacht Deck': {
+                keywords: 'Luxury Lounge Music, Yacht Music Mix, Premium Afro Chill',
+                mood: 'Luxury Yacht Deck',
+                setting: 'yacht parties, premium venues, sophisticated events',
+                hashtags: '#YachtMusic #LuxuryLounge #AfroLounge #PremiumVibes #BussGroove'
+            },
+            'Boutique Hotel': {
+                keywords: 'Hotel Lobby Music, Boutique Vibes, Sophisticated Lounge, Premium Instrumental',
+                mood: 'Boutique Hotel Ambiance',
+                setting: 'hotel lobbies, boutique stores, upscale venues',
+                hashtags: '#HotelMusic #LobbyVibes #LoungeMusic #Sophisticated #BussGroove'
+            }
+        };
+
+        async function generateYouTubeSEO() {
+            if (!ACTIVE_GENRE) {
+                alert("Please select a genre first!");
+                return;
+            }
+
+            const config = YT_SEO_CONFIG[ACTIVE_GENRE] || YT_SEO_CONFIG['Soul Jazz'];
+            const year = new Date().getFullYear();
+            const vol = document.getElementById('ws-vol-input')?.value || '01';
+            const volStr = String(vol).padStart(2, '0');
+
+            // Generate SEO YouTube Title
+            const ytTitle = `${config.mood} ${year} | ${config.keywords.split(',')[0]} | BussGroove Mix Vol. ${volStr}`;
+
+            // FETCH TRACKLIST
+            let timestamps = "[Timestamps will appear here after Factory Build]";
+            try {
+                const r = await fetch(`/api/tracklist/${encodeURIComponent(ACTIVE_GENRE)}`);
+                const res = await r.json();
+                if (res.tracklist) timestamps = res.tracklist;
+            } catch (e) { console.error("Tracklist fetch error:", e); }
+
+            // Generate YouTube Description
+            const ytDescription = `🎵 ${config.mood} ${year} | ${config.keywords.split(',')[0]}
+
+Premium instrumental music for ${config.setting}. This ${ACTIVE_GENRE} mix features 80+ minutes of carefully curated tracks perfect for background listening.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📌 Subscribe for more premium mixes: https://youtube.com/@BussGroove
+🎹 All music created for BussGroove
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️ TIMESTAMPS:
+${timestamps}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${config.hashtags}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+© ${year} BussGroove | Premium Instrumental Music
+${config.keywords}`;
+
+            document.getElementById('yt-title').value = ytTitle;
+            document.getElementById('yt-description').value = ytDescription;
+        }
+
+        function copyYouTubeTitle() {
+            const title = document.getElementById('yt-title').value;
+            if (!title) {
+                generateYouTubeSEO();
+            }
+            navigator.clipboard.writeText(document.getElementById('yt-title').value);
+            showCopyFeedback('🎬 YouTube Title copied!');
+        }
+
+        function copyYouTubeDescription() {
+            const desc = document.getElementById('yt-description').value;
+            if (!desc) {
+                generateYouTubeSEO();
+            }
+            navigator.clipboard.writeText(document.getElementById('yt-description').value);
+            showCopyFeedback('📝 YouTube Description copied!');
+        }
+
+        // --- INGEST LOGIC (View 3) ---
+        function openIngestForActive() {
+            if (!ACTIVE_GENRE) return;
+            openIngest(ACTIVE_GENRE);
+        }
+
+        function openIngestAll() {
+            // Default to first genre
+            openIngest(Object.keys(VIBES)[0]);
+        }
+
+        function openIngest(genre) {
+            ACTIVE_GENRE = genre; // Ensure consistency
+            document.getElementById('ingest-subtitle').innerText = `Working on: ${genre}`;
+            document.getElementById('ingest-target-text').innerText = `Target: Music_Songs/${genre}`;
+
+            // Update Designer Context
+            refreshPreviewBackground();
+
+            document.getElementById('view-ingest').style.display = 'flex';
+        }
+
+        function closeIngest() {
+            document.getElementById('view-ingest').style.display = 'none';
+        }
+
+        // --- DRAG DROP ---
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(fileList) {
+            const formData = new FormData();
+            formData.append('genre', ACTIVE_GENRE);
+            formData.append('type', 'music'); // Defaulting to music for focus mode
+            for (let i = 0; i < fileList.length; i++) formData.append('files', fileList[i]);
+
+            document.getElementById('ingest-status').innerText = "Uploading...";
+            fetch('/api/upload', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    document.getElementById('ingest-status').innerText = res.message;
+                    markStepDone(3); // Mark Ingest as Done
+                    fetch('/api/workflow/update', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ genre: ACTIVE_GENRE, status: 'Ready' })
+                    });
+                });
+        }
+
+        // --- DESIGNER & FACTORY (Minified) ---
+        // (Similar logic to before, reusing canvas code)
+        const canvas = document.getElementById('thumbnail-preview-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1920; canvas.height = 1080;
+        let previewBgImage = new Image();
+        previewBgImage.onload = () => updatePreview();
+        previewBgImage.onerror = () => {
+            console.error("❌ Failed to load preview background from /api/preview/background/" + ACTIVE_GENRE);
+            // Verify if we actually have a genre
+            if (ACTIVE_GENRE) {
+                log("⚠️ Preview Image not found. Is your 'Image_Assets/" + ACTIVE_GENRE + "' folder empty?");
+            }
+        };
+
+        function setupDesigner() {
+            renderDesignerControls();
+            setInterval(updateQueue, 2000);
+        }
+
+        function refreshPreviewBackground() {
+            if (!ACTIVE_GENRE) return;
+            previewBgImage.src = `/api/preview/background/${ACTIVE_GENRE}?t=${new Date().getTime()}`;
+        }
+
+        function startProcessing() {
+            // PHASE 6: MANUAL MMQ GATE
+            const certified = document.getElementById('mmq-certify');
+            if (!certified || !certified.checked) {
+                alert("🛑 QUALITY GATE BLOCKED\n\nYou must certify the quality of these tracks before the factory will accept them.\n\nCheck the box in '3. Build'.");
+                return;
+            }
+
+            // Construct Payload from Designer Config
+            const payload = {
+                line1_text: DEFAULTS[1].text,
+                line2_text: DEFAULTS[2].text,
+                line3_text: DEFAULTS[3].text,
+                line1_config: DEFAULTS[1],
+                line2_config: DEFAULTS[2],
+                line3_config: DEFAULTS[3],
+                background_image: OVERRIDE_BG_IMAGE // Global or null
+            };
+
+            // Apply Dynamic Text Updates if in a genre
+            if (ACTIVE_GENRE) {
+                if (payload.line1_text === "Genre Info") payload.line1_text = ACTIVE_GENRE;
+                if (payload.line2_text === "Mix Title") payload.line2_text = document.getElementById('ws-title-text').value || "Mix Title";
+                if (payload.line3_text === "Vol Info") payload.line3_text = `Vol. ${String(document.getElementById('ws-vol-input').value).padStart(2, '0')}`;
+            }
+
+            console.log("Sending Config:", payload);
+
+            fetch('/api/process', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' }
+            })
+                .then(r => r.json()).then(res => log(res.message));
+        }
+
+        function startUpload() {
+            console.log("Upload button clicked!");
+
+            if (!ACTIVE_GENRE) {
+                alert("⚠️ No genre selected. Please go back to Dashboard, click a Vibe card, then come back to Production Studio.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-upload');
+            const status = document.getElementById('upload-status');
+
+            if (!btn) {
+                alert("❌ Button element not found!");
+                return;
+            }
+
+            // Capture Custom Metadata
+            const customTitle = document.getElementById('video-title').value;
+            const customDesc = document.getElementById('video-desc').value;
+
+            btn.disabled = true;
+            btn.innerText = "🚀 Starting...";
+            status.innerText = "Starting upload for " + ACTIVE_GENRE + "...";
+            status.style.color = "#FFC107";
+
+            console.log("Sending upload request for:", ACTIVE_GENRE);
+
+            // Start background upload
+            fetch('/api/workflow/upload_youtube', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    genre: ACTIVE_GENRE,
+                    custom_title: customTitle,
+                    custom_desc: customDesc
+                })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    console.log("Response:", res);
+
+                    if (res.success && res.job_id) {
+                        // Start polling for status
+                        status.innerText = res.message;
+                        pollUploadStatus(res.job_id, btn, status);
+                    } else {
+                        // Immediate error
+                        btn.disabled = false;
+                        btn.innerText = "📺 Upload to YouTube";
+                        status.innerText = res.message || "❌ Failed to start upload";
+                        status.style.color = "#ff4444";
+                    }
+                })
+                .catch(err => {
+                    console.error("Upload error:", err);
+                    btn.disabled = false;
+                    btn.innerText = "📺 Upload to YouTube";
+                    status.innerText = "❌ Network Error: " + err;
+                    status.style.color = "#ff4444";
+                });
+        }
+
+        // Poll for upload status every 3 seconds
+        function pollUploadStatus(jobId, btn, status) {
+            const pollInterval = setInterval(() => {
+                fetch(`/api/upload_status/${jobId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        status.innerText = data.message;
+
+                        if (data.status === 'complete') {
+                            clearInterval(pollInterval);
+                            btn.disabled = false;
+                            btn.innerText = "📺 Upload to YouTube";
+                            status.style.color = "#00ff88";
+                            alert("✅ Upload Complete! Check YouTube Studio.");
+                        } else if (data.status === 'error') {
+                            clearInterval(pollInterval);
+                            btn.disabled = false;
+                            btn.innerText = "📺 Upload to YouTube";
+                            status.style.color = "#ff4444";
+                            alert("❌ " + data.message);
+                        } else {
+                            // Still uploading
+                            btn.innerText = "⏳ Uploading...";
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Poll error:", err);
+                        // Don't stop polling on network hiccup
+                    });
+            }, 3000); // Poll every 3 seconds
+        }
+
+        // MANUAL UPLOAD FUNCTION (Fallback)
+        function manualUploadToYouTube() {
+            const videoInput = document.getElementById('manual-video-input');
+            const thumbInput = document.getElementById('manual-thumb-input');
+            const titleInput = document.getElementById('manual-title-input');
+            const descInput = document.getElementById('manual-desc-input');
+            const status = document.getElementById('manual-upload-status');
+
+            // Validation
+            if (!videoInput.files || videoInput.files.length === 0) {
+                alert("⚠️ Please select a video file (MP4)");
+                return;
+            }
+
+            if (!titleInput.value.trim()) {
+                alert("⚠️ Please enter a title for the video");
+                return;
+            }
+
+            status.innerText = "🚀 Uploading to YouTube...";
+            status.style.color = "#FFC107";
+
+            // Build FormData with files
+            const formData = new FormData();
+            formData.append('video', videoInput.files[0]);
+            if (thumbInput.files && thumbInput.files.length > 0) {
+                formData.append('thumbnail', thumbInput.files[0]);
+            }
+            formData.append('title', titleInput.value.trim());
+            formData.append('description', descInput.value.trim() || '');
+
+            fetch('/api/manual_upload_youtube', {
+                method: 'POST',
+                body: formData
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        status.innerText = "✅ " + res.message;
+                        status.style.color = "#00ff88";
+                        alert("✅ Upload Successful! Check YouTube Studio.");
+                    } else {
+                        status.innerText = "❌ " + res.message;
+                        status.style.color = "#ff4444";
+                        alert("❌ Error: " + res.message);
+                    }
+                })
+                .catch(err => {
+                    status.innerText = "❌ Network Error: " + err;
+                    status.style.color = "#ff4444";
+                    alert("❌ Network Error: " + err);
+                });
+        }
+
+        function log(msg) { document.getElementById('log-window').innerHTML += `<div>${msg}</div>`; }
+        function updateQueue() {
+            fetch('/api/status').then(r => r.json()).then(data => {
+                if (data.status_msg) log(data.status_msg);
+            });
+        }
+
+        // ... Config for Designer Controls ...
+        // ... Config for Designer Controls ...
+        const DEFAULTS = {
+            1: { text: "Genre Info", x: 58, y: 677, size: 251, color: "#FFFFFF", font: "arial", weight: "bold" },
+            2: { text: "Mix Title", x: 42, y: 856, size: 171, color: "#FFFFFF", font: "arial", weight: "bold" },
+            3: { text: "Vol Info", x: 104, y: 923, size: 43, color: "#FFFFFF", font: "arial", weight: "bold" }
+        };
+
+        const FONT_OPTIONS = [
+            { val: "inter", label: "Inter (Modern)" },
+            { val: "playfair", label: "Playfair (Elegant)" },
+            { val: "tan ashford", label: "TAN Ashford (Luxury)" },
+            { val: "bauer bodoni", label: "Bauer Bodoni (Classic)" },
+            { val: "univers condensed", label: "Univers Condensed (Clean)" },
+            { val: "itc edwardian script", label: "Edwardian Script (Calligraphy)" },
+            { val: "georgia pro condensed", label: "Georgia Pro (Editorial)" },
+            { val: "futura", label: "Futura (Geometric)" },
+            { val: "gordita", label: "Gordita (Friendly)" },
+            { val: "arial", label: "BussGroove Style (Arial)" }
+        ];
+
+        const WEIGHT_OPTIONS = [
+            { val: "light", label: "Light" },
+            { val: "normal", label: "Regular" },
+            { val: "bold", label: "Bold" },
+            { val: "black", label: "Black (Heavy)" }
+        ];
+
+        function renderDesignerControls() {
+            const container = document.getElementById('designer-controls');
+            container.innerHTML = "";
+
+            // Render inputs for Line 1, 2, 3
+            [1, 2, 3].forEach(id => {
+                const conf = DEFAULTS[id];
+
+                const group = document.createElement('div');
+                group.style.marginBottom = "15px";
+                group.style.borderBottom = "1px solid #333";
+                group.style.paddingBottom = "10px";
+
+                // Generate Options HTML
+                const fontOpts = FONT_OPTIONS.map(o =>
+                    `<option value="${o.val}" ${conf.font === o.val ? 'selected' : ''}>${o.label}</option>`
+                ).join('');
+
+                const weightOpts = WEIGHT_OPTIONS.map(o =>
+                    `<option value="${o.val}" ${conf.weight === o.val ? 'selected' : ''}>${o.label}</option>`
+                ).join('');
+
+                group.innerHTML = `
+                <div style="font-weight:bold; color:var(--primary-color); margin-bottom:5px;">Line ${id}</div>
+                <div style="display:flex; gap:10px; margin-bottom:5px;">
+                    <label style="flex:1;">Text: <textarea oninput="updateConf(${id}, 'text', this.value)" style="width:100%; background:#222; border:1px solid #444; color:#fff; height:60px; font-family:sans-serif;">${conf.text}</textarea></label>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <label>X: <input type="number" value="${conf.x}" oninput="updateConf(${id}, 'x', this.value)" style="width:60px;"></label>
+                    <label>Y: <input type="number" value="${conf.y}" oninput="updateConf(${id}, 'y', this.value)" style="width:60px;"></label>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <label>Size: <input type="number" value="${conf.size}" oninput="updateConf(${id}, 'size', this.value)" style="width:60px;"></label>
+                    <label>Color: <input type="color" value="${conf.color}" oninput="updateConf(${id}, 'color', this.value)"></label>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:5px;">
+                    <label>Font: 
+                        <select onchange="updateConf(${id}, 'font', this.value)" style="background:#222; color:#fff; border:1px solid #444; padding:2px; width:100px;">
+                            ${fontOpts}
+                        </select>
+                    </label>
+                    <label>Weight: 
+                        <select onchange="updateConf(${id}, 'weight', this.value)" style="background:#222; color:#fff; border:1px solid #444; padding:2px; width:80px;">
+                            ${weightOpts}
+                        </select>
+                    </label>
+                </div>
+            `;
+                container.appendChild(group);
+            });
+        }
+
+        function updateConf(id, key, val) {
+            DEFAULTS[id][key] = val;
+            updatePreview();
+        }
+
+        function saveThumbnail() {
+            if (!ACTIVE_GENRE) return;
+            const status = document.getElementById('thumb-save-status');
+            status.innerText = "⏳ Saving...";
+            status.style.color = "#FFC107";
+
+            const payload = {
+                line1_text: DEFAULTS[1].text,
+                line2_text: DEFAULTS[2].text,
+                line3_text: DEFAULTS[3].text,
+                line1_config: DEFAULTS[1],
+                line2_config: DEFAULTS[2],
+                line3_config: DEFAULTS[3],
+                genre: ACTIVE_GENRE,
+                background_image: OVERRIDE_BG_IMAGE
+            };
+
+            fetch('/api/generate_thumbnail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.path) {
+                        status.innerText = res.message;
+                        status.style.color = "#00ff88";
+                    } else {
+                        status.innerText = "❌ Error saving";
+                        status.style.color = "#ff4444";
+                    }
+                })
+                .catch(e => {
+                    status.innerText = "❌ " + e;
+                    status.style.color = "#ff4444";
+                });
+        }
+
+        function openOutputFolder() {
+            if (!ACTIVE_GENRE) return;
+            // Construct path: Desktop/BussGroove/Output_Mixes/<Genre>
+            // Ideally backend handles 'genre' param, but current endpoint takes raw path.
+            // We'll guess the path structure or ask backend to resolve. 
+            // EDIT: We can just use the known structure since this runs locally.
+            const path = `./workspace/BussGroove/Output_Mixes/${ACTIVE_GENRE}`;
+
+            fetch('/api/open_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            });
+        }
+
+        function updatePreview() {
+            // Draw image
+            ctx.clearRect(0, 0, 1920, 1080);
+            if (previewBgImage.src && previewBgImage.complete && previewBgImage.naturalWidth !== 0) {
+                ctx.drawImage(previewBgImage, 0, 0, 1920, 1080);
+            } else {
+                // Placeholder for missing image
+                ctx.fillStyle = "#111";
+                ctx.fillRect(0, 0, 1920, 1080);
+
+                ctx.fillStyle = "#444";
+                ctx.font = "bold 60px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("PREVIEW: NO IMAGE FOUND IN ASSETS", 960, 500);
+                ctx.font = "30px Arial";
+                ctx.fillText(`(Add images to Image_Assets/${ACTIVE_GENRE || 'Genre'})`, 960, 560);
+                ctx.textAlign = "left"; // Reset
+            }
+
+            // Draw Text Overlays
+            [1, 2, 3].forEach(id => {
+                const conf = DEFAULTS[id];
+                let text = conf.text;
+
+                // Dynamic substitutions
+                if (ACTIVE_GENRE) {
+                    if (id === 1 && text === "Genre Info") text = ACTIVE_GENRE;
+                    if (id === 2 && text === "Mix Title") text = document.getElementById('ws-title-text').value || "Mix Title";
+                    if (id === 3 && text === "Vol Info") text = `Vol.${String(document.getElementById('ws-vol-input').value).padStart(2, '0')} `;
+                }
+
+                ctx.fillStyle = conf.color;
+
+                // NEW: Use the actual font and weight selected
+                const fontWeight = conf.weight === 'bold' ? 'bold' : (conf.weight === 'light' ? '300' : 'normal');
+                ctx.font = `${fontWeight} ${conf.size}px "${conf.font}", Arial`;
+
+                ctx.fillText(text, conf.x, conf.y);
+            });
+        }
+
+        // JS Logic for View Switching
+        function showSettings() {
+            document.getElementById('view-workspace').style.display = 'none';
+            document.getElementById('view-ingest').style.display = 'none';
+            document.getElementById('view-dashboard').style.display = 'none';
+            document.getElementById('view-settings').style.display = 'block';
+
+            // Load Current
+            fetch('/api/settings').then(r => r.json()).then(data => {
+                document.getElementById('set-brand-name').value = data.brand_name || '';
+                document.getElementById('set-brand-color').value = data.brand_color_primary || '#FFC107';
+
+                const intros = data.intro_sequences || [];
+                document.getElementById('set-intro-1').value = intros[0] || '';
+                document.getElementById('set-intro-2').value = intros[1] || '';
+                document.getElementById('set-intro-3').value = intros[2] || '';
+            });
+        }
+
+        function saveSettings() {
+            const payload = {
+                brand_name: document.getElementById('set-brand-name').value,
+                brand_color_primary: document.getElementById('set-brand-color').value,
+                intro_sequences: [
+                    document.getElementById('set-intro-1').value,
+                    document.getElementById('set-intro-2').value,
+                    document.getElementById('set-intro-3').value
+                ]
+            };
+
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    alert("✅ Saved! Reloading...");
+                    location.reload();
+                }
+            });
+        }
+
+        function showDashboard() {
+            console.log("Showing dashboard");
+            const workspace = document.getElementById('view-workspace');
+            const ingest = document.getElementById('view-ingest');
+            const dash = document.getElementById('view-dashboard');
+            const sett = document.getElementById('view-settings');
+
+            if (workspace) workspace.style.display = 'none';
+            if (ingest) ingest.style.display = 'none';
+            if (sett) sett.style.display = 'none';
+            if (dash) dash.style.display = 'block';
+
+            ACTIVE_GENRE = null;
+        }
+    </script>
+</body>
+
+</html>

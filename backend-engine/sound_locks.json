@@ -1,0 +1,82 @@
+{
+    "active_profile_id": "boutique_hotel",
+    "profiles": [
+        {
+            "id": "soul_jazz",
+            "name": "Soul Jazz",
+            "description": "A laid-back smooth jazz hip-hop track featuring a prominent Rhodes piano melody.",
+            "genre_primary": "Soul Jazz",
+            "genre_secondary": "BussGroove Special",
+            "bpm_min": 74,
+            "bpm_max": 79,
+            "energy_ceiling": 5,
+            "allowed_instruments": [
+                "Rhodes piano",
+                "Rhodes piano + soft piano",
+                "Soft piano"
+            ],
+            "forbidden_instruments": [
+                "Vocals",
+                "Screaming",
+                "Heavy Distortion"
+            ],
+            "moods": [
+                "Relaxing",
+                "Professional",
+                "BussGroove"
+            ],
+            "vocal_policy": "None",
+            "display_number": 1
+        },
+        {
+            "id": "groovy_jazz",
+            "name": "Groovy Jazz",
+            "description": "An upbeat smooth jazz hip-hop track featuring a prominent, jazzy electric guitar melody.",
+            "genre_primary": "Groovy Jazz",
+            "genre_secondary": "BussGroove Special",
+            "bpm_min": 85,
+            "bpm_max": 90,
+            "energy_ceiling": 5,
+            "allowed_instruments": [
+                "Jazzy electric guitar"
+            ],
+            "forbidden_instruments": [
+                "Vocals",
+                "Screaming",
+                "Heavy Distortion"
+            ],
+            "moods": [
+                "Relaxing",
+                "Professional",
+                "BussGroove"
+            ],
+            "vocal_policy": "None",
+            "display_number": 2
+        },
+        {
+            "id": "study_sessions",
+            "name": "Study Sessions",
+            "description": "A minimal smooth jazz hip-hop track featuring a prominent soft piano melody.",
+            "genre_primary": "Study Sessions",
+            "genre_secondary": "BussGroove Special",
+            "bpm_min": 77,
+            "bpm_max": 83,
+            "energy_ceiling": 5,
+            "allowed_instruments": [
+                "Soft piano"
+            ],
+            "forbidden_instruments": [
+                "Vocals",
+                "Screaming",
+                "Heavy Distortion"
+            ],
+            "moods": [
+                "Relaxing",
+                "Professional",
+                "BussGroove"
+            ],
+            "vocal_policy": "None",
+            "display_number": 3
+        }
+    ]
+}
