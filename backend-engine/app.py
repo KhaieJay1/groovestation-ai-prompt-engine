@@ -78,14 +78,14 @@ def load_config():
     INGEST_DIR = ROOT_DIR / "Suno_Ingest"  # NEW: Drop Suno downloads here
 
     # Ensure Directories Exist
-    if not ROOT_DIR.exists(): ROOT_DIR.mkdir()
+    if not ROOT_DIR.exists(): ROOT_DIR.mkdir(parents=True, exist_ok=True)
     for d in [MUSIC_DIR, ASSETS_DIR, OUTPUT_DIR, INGEST_DIR]:
-        if not d.exists(): d.mkdir()
+        if not d.exists(): d.mkdir(parents=True, exist_ok=True)
     
     for genre in GENRE_DATA.keys():
-        (MUSIC_DIR / genre).mkdir(exist_ok=True)
-        (ASSETS_DIR / genre).mkdir(exist_ok=True)
-        (OUTPUT_DIR / genre).mkdir(exist_ok=True)
+        (MUSIC_DIR / genre).mkdir(parents=True, exist_ok=True)
+        (ASSETS_DIR / genre).mkdir(parents=True, exist_ok=True)
+        (OUTPUT_DIR / genre).mkdir(parents=True, exist_ok=True)
 
 # ... (Imports) ...
 from sound_lock_manager import SoundLockManager
@@ -125,14 +125,14 @@ def set_active_soundlock():
     INGEST_DIR = ROOT_DIR / "Suno_Ingest"  # NEW: Drop Suno downloads here
 
     # Ensure Directories Exist
-    if not ROOT_DIR.exists(): ROOT_DIR.mkdir()
+    if not ROOT_DIR.exists(): ROOT_DIR.mkdir(parents=True, exist_ok=True)
     for d in [MUSIC_DIR, ASSETS_DIR, OUTPUT_DIR, INGEST_DIR]:
-        if not d.exists(): d.mkdir()
+        if not d.exists(): d.mkdir(parents=True, exist_ok=True)
     
     for genre in GENRE_DATA.keys():
-        (MUSIC_DIR / genre).mkdir(exist_ok=True)
-        (ASSETS_DIR / genre).mkdir(exist_ok=True)
-        (OUTPUT_DIR / genre).mkdir(exist_ok=True)
+        (MUSIC_DIR / genre).mkdir(parents=True, exist_ok=True)
+        (ASSETS_DIR / genre).mkdir(parents=True, exist_ok=True)
+        (OUTPUT_DIR / genre).mkdir(parents=True, exist_ok=True)
 
 # Initial Load
 load_config()
@@ -545,7 +545,7 @@ def handle_upload():
         next_num = len(mix_dirs) + 1
         
         mix_folder = target_root / f"Mix {next_num}"
-        mix_folder.mkdir(exist_ok=True)
+        mix_folder.mkdir(parents=True, exist_ok=True)
         
         count = 0
         for file in uploaded_files:
@@ -994,7 +994,7 @@ def manual_upload_youtube():
     
     # Save video temporarily
     temp_dir = Path('temp_uploads')
-    temp_dir.mkdir(exist_ok=True)
+    temp_dir.mkdir(parents=True, exist_ok=True)
     
     video_filename = f"manual_upload_{int(time.time())}.mp4"
     video_path = temp_dir / video_filename

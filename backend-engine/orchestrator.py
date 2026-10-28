@@ -53,8 +53,8 @@ CONFIG = {
 def load_config():
     # In future, load from config.yaml
     for key, path in CONFIG['dirs'].items():
-        path.mkdir(exist_ok=True)
-    CONFIG['dirs']['assets'].mkdir(exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True)
+    CONFIG['dirs']['assets'].mkdir(parents=True, exist_ok=True)
 
     with open("prompts.yaml", 'r', encoding='utf-8') as f:
         y = yaml.safe_load(f)
@@ -125,7 +125,7 @@ def process_file(file_path: Path):
     # 1. Setup job paths
     # We want output to stay in the Mix folder
     work_dir = file_path.parent / f".processing_{file_path.stem}"
-    work_dir.mkdir(exist_ok=True)
+    work_dir.mkdir(parents=True, exist_ok=True)
     
     try:
         # Move file to processing
@@ -312,7 +312,7 @@ def process_batch_mix(genre_name, file_list, output_base_dir, custom_config={}):
     
     # 1. Setup Output Directory
     final_output_dir = output_base_dir / "output"
-    final_output_dir.mkdir(exist_ok=True)
+    final_output_dir.mkdir(parents=True, exist_ok=True)
     
     # --- SOUND LOCK FORCEMENT (PHASE 4) ---
     from sound_lock_manager import SoundLockManager
@@ -472,7 +472,7 @@ def process_batch_mix(genre_name, file_list, output_base_dir, custom_config={}):
                 
                 # Logic for archiving used image
                 used_folder = asset_folder / "Used"
-                used_folder.mkdir(exist_ok=True)
+                used_folder.mkdir(parents=True, exist_ok=True)
                 
                 def archive_used_image():
                     try:
@@ -547,7 +547,7 @@ def process_batch_mix(genre_name, file_list, output_base_dir, custom_config={}):
                 
                 # Logic for archiving used image
                 used_folder = asset_folder / "Used"
-                used_folder.mkdir(exist_ok=True)
+                used_folder.mkdir(parents=True, exist_ok=True)
                 
                 def archive_used_image():
                     try:
